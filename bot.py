@@ -34,7 +34,7 @@ async def on_member_join(member):
     await channel.send(content=f"Hello {member.name}, Welcome to the server!")
 
 
-# Chat Log
+# Chat Log (Message Deleted)
 @bot.event
 async def on_message_delete(message):
     chatlog_channel = bot.get_channel(1310776908908331040)
@@ -46,6 +46,23 @@ async def on_message_delete(message):
     embed.add_field(name="**Content**", value=message.content, inline=False)
     embed.set_author(name=message.author, icon_url=message.author.display_avatar)
     embed.set_footer(text=f"User ID: {message.author.id}")
+    await chatlog_channel.send(embed=embed)
+
+
+# Chat Log (Message Edited)
+@bot.event
+async def on_message_edit(before, after):
+    chatlog_channel = bot.get_channel(1310776908908331040)
+    jump_url = f"https://discord.com/channels/{before.guild.id}/{before.channel.id}/{before.id}"
+    embed = discord.Embed(
+        description=f"Message edited in <#{before.channel.id}> - [**Jump to message**]({jump_url})",
+        color=discord.Color.yellow(),
+        timestamp=datetime.now(),
+    )
+    embed.add_field(name="**Before**", value=before.content, inline=False)
+    embed.add_field(name="**Aftere**", value=after.content, inline=False)
+    embed.set_author(name=before.author, icon_url=before.author.display_avatar)
+    embed.set_footer(text=f"User ID: {before.author.id}")
     await chatlog_channel.send(embed=embed)
 
 
