@@ -2,7 +2,7 @@ import toml
 import discord
 from discord.ext import commands
 from discord import app_commands
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 
 handler = logging.FileHandler(filename="discord.log", encoding="utf-8", mode="w")
@@ -50,6 +50,28 @@ async def ban(interaction: discord.Interaction, member: discord.Member, reason: 
     embed.set_footer(text=f"User ID: {member.id}")
     await chatlog_channel.send(embed=embed)
 
+# Mute command
+@app_commands.command(description="Mute the member")
+@app_commands.describe(member="The member to mute")
+@app_commands.describe(time="For how long the member will stay muted")
+@app_commands.describe(reason="Reason of the mute")
+async def mute(interaction: discord.Interaction, member: discord.Member, time: int, reason: str):
+    
+    time_muted = timedelta(minutes=time)
+    await member.timeout(time_muted, reason=reason)
+
+    await interaction.response.send_message(f"Muted {member}")
+    chatlog_channel = bot.get_channel(1310776908908331040)
+
+    embed = discord.Embed(
+        title=f"The member {member.name} has being muted for {time}m",
+        color=discord.Color.red(),
+        timestamp=datetime.now(),
+    )
+    embed.add_field(name="**Reason**", value=reason, inline=False)
+    embed.set_author(name=member.name, icon_url=member.display_avatar)
+    embed.set_footer(text=f"User ID: {member.id}")
+    await chatlog_channel.send(embed=embed)
 
 # ping command
 @app_commands.command(description="Ping!")
@@ -57,6 +79,19 @@ async def ping(interaction: discord.Interaction):
 
     await interaction.response.send_message("Pong!")
 
+# Show Profile Picture command
+@app_commands.command(description="Show the profile picture from a member")
+@app_commands.describe(member="The member to show the pfp")
+async def pfp(interaction: discord.Interaction, member: discord.Member):
+        
+    embed = discord.Embed(
+        title=f"Profile Picture from {member.name}",
+        color=member.color,
+        timestamp=datetime.now(),
+    )
+    embed.set_image(url=member.display_avatar.url)
+    embed.set_footer(text=f"User ID: {member.id}")
+    await interaction.response.send_message(embed=embed)
 
 # Sync the commands
 @bot.event
@@ -66,6 +101,8 @@ async def on_ready():
         bot.tree.add_command(ping)
         bot.tree.add_command(ban)
         bot.tree.add_command(purge)
+        bot.tree.add_command(mute)
+        bot.tree.add_command(pfp)
         synced = await bot.tree.sync()
         print(f"Synced {len(synced)} commands:")
         for command in synced:
