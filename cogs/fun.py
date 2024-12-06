@@ -41,6 +41,9 @@ class Fun(commands.Cog):
         account_created = f"<t:{account_created_unix}:F>"
         join_date = f"<t:{join_date_unix}:F>" if join_date_unix else "N/A"
 
+        # get member roles
+        role_names = ", ".join([role.mention for role in member.roles[1:]])
+
         embed = discord.Embed(
             color=member.color,
             timestamp=datetime.now(),
@@ -50,7 +53,7 @@ class Fun(commands.Cog):
         embed.set_thumbnail(url=member.avatar)
         embed.add_field(name="Account Created", value=account_created, inline=False)
         embed.add_field(name="Join Date", value=join_date, inline=False)
-        embed.add_field(name="Roles", value=member.roles)
+        embed.add_field(name=f"Roles [{len(member.roles[1:])}]", value=role_names)
         embed.set_author(name=member.name, icon_url=member.display_avatar)
         embed.set_footer(text=f"User ID: {member.id}")
         await interaction.response.send_message(embed=embed)
