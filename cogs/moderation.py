@@ -32,6 +32,14 @@ class Moderation(commands.Cog):
     async def ban(
         self, interaction: discord.Interaction, member: discord.Member, reason: str
     ):
+        # send the ban message to the user
+        if not member.dm_channel:
+            await member.create_dm()
+        try:
+            await member.dm_channel.send(f"You have been banned from {member.guild.name} for the reason: {reason}")
+            print(f"{member.name} was banned and the message was sent")
+        except discord.Forbidden:
+            print(f"It was not possible to send the message, maybe the user disabled his dms")
 
         await member.ban(reason=reason)
         await interaction.response.send_message(f"Banned {member}")
