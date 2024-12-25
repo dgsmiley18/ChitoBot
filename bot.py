@@ -64,6 +64,21 @@ async def on_member_join(member):
     else:
         print("This channel does not exist.")
 
+# When the member leaves the server
+@bot.event
+async def on_member_remove(member):
+    welcome_channel = bot.get_channel(1310753679854272564)
+    if welcome_channel:
+        await welcome_channel.send(
+            content=f"Goodbye <@{member.id}>, We will miss you!"
+        )
+    else:
+        print("This channel does not exist.")
+
+@bot.event
+async def on_interaction(interaction: discord.Interaction):
+    print(f"Received interaction: {interaction.data}")
+
 
 # Chat Log (Message Deleted)
 @bot.event
