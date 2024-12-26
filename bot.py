@@ -64,16 +64,16 @@ async def on_member_join(member):
     else:
         print("This channel does not exist.")
 
+
 # When the member leaves the server
 @bot.event
 async def on_member_remove(member):
     welcome_channel = bot.get_channel(1310753679854272564)
     if welcome_channel:
-        await welcome_channel.send(
-            content=f"Goodbye <@{member.id}>, We will miss you!"
-        )
+        await welcome_channel.send(content=f"Goodbye <@{member.id}>, We will miss you!")
     else:
         print("This channel does not exist.")
+
 
 @bot.event
 async def on_interaction(interaction: discord.Interaction):
@@ -86,7 +86,7 @@ async def on_message_delete(message):
 
     if message.author.bot:
         return
-    
+
     chatlog_channel = bot.get_channel(1310776908908331040)
     embed = discord.Embed(
         description=f"Message deleted in <#{message.channel.id}>",
@@ -102,7 +102,7 @@ async def on_message_delete(message):
 # Chat Log (Message Edited)
 @bot.event
 async def on_message_edit(before, after):
-    
+
     if before.author.bot:
         return
 
