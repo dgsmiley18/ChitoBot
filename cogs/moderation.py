@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from datetime import datetime, timedelta
+from typing import cast
 
 
 class Moderation(commands.Cog):
@@ -14,15 +15,18 @@ class Moderation(commands.Cog):
     @app_commands.describe(reason="Reason for the purge")
     @app_commands.checks.has_permissions(ban_members=True)
     async def purge(self, interaction: discord.Interaction, limit: int, reason: str):
-
         await interaction.response.defer(ephemeral=True)
+
+        if not interaction.channel or not hasattr(interaction.channel, 'purge'):
+                await interaction.followup.send("This channel type does not support purging.")
+                return
         try:
-            deleted = await interaction.channel.purge(limit=limit, reason=reason)
+            deleted = await cast(discord.TextChannel, interaction.channel).purge(limit=limit, reason=reason)
             await interaction.followup.send(
                 f"Deleted {len(deleted)} message(s) for the reason: {reason}"
             )
         except Exception as e:
-            await interaction.followup.send(f"an error was found {e}")
+            await interaction.followup.send(f"An error was found {e}")
 
     # Ban member command
     @app_commands.command(description="Bans a member")
@@ -40,36 +44,41 @@ class Moderation(commands.Cog):
         # Use defer to inform Discord that the command is being processed
         await interaction.response.defer(thinking=True)
 
-        # Check if the member is in the server
-        if member not in interaction.guild.members:
-            await interaction.followup.send(
-                f"The member {member} is not in the server and cannot be banned."
-            )
-            print(f"The member {member} is not in the server and cannot be banned.")
+        if interaction.guild is None:
+            await interaction.response.send_message("This command can only be used inside a server!", ephemeral=True)
             return
 
-        # Send the ban message to the user
+        # Check if the member is in the server
+        if member not in interaction.guild.members:
+                await interaction.followup.send(
+                    f"The member {member} is not in the server and cannot be banned."
+                )
+                return
+
+        # Send the ban message to the user before banning him
         if not member.dm_channel:
             await member.create_dm()
 
         try:
-            await member.dm_channel.send(
-                f"You have been banned from {member.guild.name} for the reason: {reason}"
-            )
-            print(f"{member.name} was banned and the message was sent")
+            await interaction.guild.ban(user=member, reason=reason)
+            await interaction.followup.send(f"{member} has been banned.")
+            await member.send(f"You have been banned from {interaction.guild.name} for the reason: {reason}")
+            print(f"{member.name} was notified via DM.")
+
         except discord.Forbidden:
             await interaction.followup.send(
-                f"It was not possible to send the message, maybe the user disabled their DMs."
+                "It was not possible to send the message, maybe the user disabled their DMs."
             )
             print(
-                f"It was not possible to send the message, maybe the user disabled their DMs."
+                "It was not possible to send the message, maybe the user disabled their DMs."
             )
         except discord.NotFound:
             await interaction.followup.send(
                 f"The member {member} is not in the server and cannot be banned."
             )
             print(f"The member {member} is not in the server and cannot be banned.")
-
+        
+        # Ban the member
         try:
             await interaction.guild.ban(user=member, reason=reason)
             await interaction.followup.send(f"{member} has been banned.")
@@ -127,7 +136,7 @@ class Moderation(commands.Cog):
             print(f"{member.name} was muted and the message was sent")
         except discord.Forbidden:
             print(
-                f"It was not possible to send the message, maybe the user disabled his dms"
+                "It was not possible to send the message, maybe the user disabled his dms"
             )
 
             chatlog_channel = self.bot.get_channel(1310776908908331040)

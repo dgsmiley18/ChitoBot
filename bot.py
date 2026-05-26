@@ -1,13 +1,14 @@
-import toml
+import tomllib
 import discord
 from discord.ext import commands
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 import logging
 
 # Log
 handler = logging.FileHandler(filename="discord.log", encoding="utf-8", mode="w")
-config = toml.load("config.toml")
+with open("config.toml", "rb") as f:
+    config = tomllib.load(f)
 token = config["config"]["token"]
 
 intents = discord.Intents.default()
@@ -35,9 +36,10 @@ async def on_ready():
         print(f"Error during sync: {e}")
     # Activity
     server = bot.get_guild(1310733145779474563)
-    await bot.change_presence(
-        activity=discord.Activity(name=f"{server.member_count} users", type=3)
-    )  # Displays 'Watching 3 users'
+    if server is not None and server.member_count is not None:
+        await bot.change_presence(
+            activity=discord.Activity(name=f"{server.member_count} users", type=3)
+        )  # Displays 'Watching 3 users'
 
 
 @bot.event
@@ -50,7 +52,7 @@ async def on_message(message):
 @bot.event
 async def on_member_join(member):
     welcome_channel = bot.get_channel(1310753679854272564)
-    if welcome_channel:
+    if isinstance(welcome_channel, discord.TextChannel):
         await welcome_channel.send(
             content=f"Hello <@{member.id}>, Welcome to the server!"
         )
@@ -69,7 +71,7 @@ async def on_member_join(member):
 @bot.event
 async def on_member_remove(member):
     welcome_channel = bot.get_channel(1310753679854272564)
-    if welcome_channel:
+    if isinstance(welcome_channel, discord.TextChannel):
         await welcome_channel.send(content=f"Goodbye <@{member.id}>, We will miss you!")
     else:
         print("This channel does not exist.")
@@ -88,36 +90,41 @@ async def on_message_delete(message):
         return
 
     chatlog_channel = bot.get_channel(1310776908908331040)
-    embed = discord.Embed(
-        description=f"Message deleted in <#{message.channel.id}>",
-        color=discord.Color.red(),
-        timestamp=datetime.now(),
-    )
-    embed.add_field(name="**Content**", value=message.content, inline=False)
-    embed.set_author(name=message.author, icon_url=message.author.display_avatar)
-    embed.set_footer(text=f"User ID: {message.author.id}")
-    await chatlog_channel.send(embed=embed)
+    if isinstance(chatlog_channel, discord.TextChannel):
+        embed = discord.Embed(
+            description=f"Message deleted in <#{message.channel.id}>",
+            color=discord.Color.red(),
+            timestamp=datetime.now(),
+        )
+        embed.add_field(name="**Content**", value=message.content, inline=False)
+        embed.set_author(name=message.author, icon_url=message.author.display_avatar)
+        embed.set_footer(text=f"User ID: {message.author.id}")
+        await chatlog_channel.send(embed=embed)
 
+    else:
+        print("LOG Channel not found")
 
 # Chat Log (Message Edited)
 @bot.event
 async def on_message_edit(before, after):
-
     if before.author.bot:
         return
 
     chatlog_channel = bot.get_channel(1310776908908331040)
     jump_url = f"https://discord.com/channels/{before.guild.id}/{before.channel.id}/{before.id}"
-    embed = discord.Embed(
-        description=f"Message edited in <#{before.channel.id}> - [**Jump to message**]({jump_url})",
-        color=discord.Color.yellow(),
-        timestamp=datetime.now(),
-    )
-    embed.add_field(name="**Before**", value=before.content, inline=False)
-    embed.add_field(name="**After**", value=after.content, inline=False)
-    embed.set_author(name=before.author, icon_url=before.author.display_avatar)
-    embed.set_footer(text=f"User ID: {before.author.id}")
-    await chatlog_channel.send(embed=embed)
+    if isinstance(chatlog_channel, discord.TextChannel):
+        embed = discord.Embed(
+            description=f"Message edited in <#{before.channel.id}> - [**Jump to message**]({jump_url})",
+            color=discord.Color.yellow(),
+            timestamp=datetime.now(),
+        )
+        embed.add_field(name="**Before**", value=before.content, inline=False)
+        embed.add_field(name="**After**", value=after.content, inline=False)
+        embed.set_author(name=before.author, icon_url=before.author.display_avatar)
+        embed.set_footer(text=f"User ID: {before.author.id}")
+        
+        await chatlog_channel.send(embed=embed)
+    else:
+        print("LOG Channel not found")
 
-
-bot.run(token, log_handler=handler, log_level="DEBUG")
+bot.run(token, log_handler=handler, log_level=logging.DEBUG)
