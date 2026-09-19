@@ -1,7 +1,8 @@
+from datetime import datetime
+
 import discord
-from discord.ext import commands
 from discord import app_commands
-from datetime import datetime, timedelta
+from discord.ext import commands
 
 
 class Fun(commands.Cog):

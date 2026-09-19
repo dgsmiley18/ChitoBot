@@ -1,0 +1,7 @@
+[project]
+name = "chitobot"
+version = "0.1.0"
+dependencies = [
+    "discord.py>=2.3.0",
+    "toml"
+]

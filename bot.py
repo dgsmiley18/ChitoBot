@@ -1,9 +1,10 @@
-import tomllib
-import discord
-from discord.ext import commands
-from datetime import datetime
-import os
 import logging
+import os
+from datetime import datetime
+
+import discord
+import tomllib
+from discord.ext import commands
 
 # Log
 handler = logging.FileHandler(filename="discord.log", encoding="utf-8", mode="w")
