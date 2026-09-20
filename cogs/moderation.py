@@ -1,5 +1,4 @@
-from datetime import datetime, timedelta
-from typing import cast
+from datetime import timedelta
 
 import discord
 from discord import app_commands
@@ -7,159 +6,155 @@ from discord.ext import commands
 
 
 class Moderation(commands.Cog):
-    def __init__(self, bot):
+    """Cog responsible for moderation actions such as purge, ban, and mute."""
+
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # Purge messages command
-    @app_commands.command(description="Clear the messages")
-    @app_commands.describe(limit="number of messages")
-    @app_commands.describe(reason="Reason for the purge")
-    @app_commands.checks.has_permissions(ban_members=True)
-    async def purge(self, interaction: discord.Interaction, limit: int, reason: str):
+    async def _send_log(self, guild: discord.Guild, embed: discord.Embed) -> None:
+        """Helper to send moderation logs to the configured channel."""
+        log_channel_id = getattr(self.bot, "log_channel_id", 0)
+        if not log_channel_id:
+            return
+
+        channel = guild.get_channel(log_channel_id)
+        if isinstance(channel, discord.TextChannel):
+            await channel.send(embed=embed)
+
+    # --- Purge Command ---
+    @app_commands.command(name="purge", description="Clears a specified number of messages.")
+    @app_commands.describe(limit="Number of messages to delete", reason="Reason for purging messages")
+    @app_commands.checks.has_permissions(manage_messages=True)
+    async def purge(self, interaction: discord.Interaction, limit: int, reason: str = "No reason provided"):
         await interaction.response.defer(ephemeral=True)
 
-        if not interaction.channel or not hasattr(interaction.channel, 'purge'):
-                await interaction.followup.send("This channel type does not support purging.")
-                return
-        try:
-            deleted = await cast(discord.TextChannel, interaction.channel).purge(limit=limit, reason=reason)
-            await interaction.followup.send(
-                f"Deleted {len(deleted)} message(s) for the reason: {reason}"
-            )
-        except Exception as e:
-            await interaction.followup.send(f"An error was found {e}")
+        if not isinstance(interaction.channel, (discord.TextChannel, discord.Thread)):
+            await interaction.followup.send("This channel does not support message purging.", ephemeral=True)
+            return
 
-    # Ban member command
-    @app_commands.command(description="Bans a member")
-    @app_commands.describe(member="The member to ban")
-    @app_commands.describe(reason="Reason of the ban")
+        if limit < 1 or limit > 100:
+            await interaction.followup.send("Please provide a limit between 1 and 100.", ephemeral=True)
+            return
+
+        try:
+            deleted = await interaction.channel.purge(limit=limit, reason=reason)
+            await interaction.followup.send(
+                f"Successfully deleted {len(deleted)} message(s). Reason: {reason}",
+                ephemeral=True,
+            )
+        except discord.Forbidden:
+            await interaction.followup.send("Missing permissions to delete messages in this channel.", ephemeral=True)
+        except Exception as error:
+            await interaction.followup.send(f"An unexpected error occurred: {error}", ephemeral=True)
+
+    # --- Ban Command ---
+    @app_commands.command(name="ban", description="Bans a member or user from the server.")
+    @app_commands.describe(user="The member or user to ban", reason="Reason for the ban")
     @app_commands.checks.has_permissions(ban_members=True)
     async def ban(
         self,
         interaction: discord.Interaction,
-        member: discord.Member | discord.User,
-        reason: str,
+        user: discord.Member | discord.User,
+        reason: str = "No reason provided",
     ):
-        print(f"Ban command invoked for {member.name} with reason: {reason}")
-
-        # Use defer to inform Discord that the command is being processed
         await interaction.response.defer(thinking=True)
 
-        if interaction.guild is None:
-            await interaction.response.send_message("This command can only be used inside a server!", ephemeral=True)
+        if not interaction.guild:
+            await interaction.followup.send("This command can only be executed within a server.")
             return
 
-        # Check if the member is in the server
-        if member not in interaction.guild.members:
-                await interaction.followup.send(
-                    f"The member {member} is not in the server and cannot be banned."
-                )
+        # Prevent attempting to ban hierarchy superiors or the bot itself
+        if isinstance(user, discord.Member):
+            if user.top_role >= interaction.guild.me.top_role:
+                await interaction.followup.send("Cannot ban this member due to role hierarchy constraints.")
+                return
+            if user.id == interaction.user.id:
+                await interaction.followup.send("You cannot ban yourself.")
                 return
 
-        # Send the ban message to the user before banning him
-        if not member.dm_channel:
-            await member.create_dm()
-
+        # Attempt to notify the target via DM prior to banning
         try:
-            await interaction.guild.ban(user=member, reason=reason)
-            await interaction.followup.send(f"{member} has been banned.")
-            await member.send(f"You have been banned from {interaction.guild.name} for the reason: {reason}")
-            print(f"{member.name} was notified via DM.")
+            await user.send(f"You have been banned from **{interaction.guild.name}**. Reason: {reason}")
+        except (discord.Forbidden, discord.HTTPException):
+            pass  # Ignore if DMs are closed or delivery fails
+
+        # Execute ban action using a Snowflake reference to bypass static typing warnings
+        try:
+            await interaction.guild.ban(discord.Object(id=user.id), reason=reason)
+            await interaction.followup.send(f"Successfully banned **{user}**.")
+
+            # Create and dispatch log embed
+            embed = discord.Embed(
+                title=f"Member Banned: {user}",
+                color=discord.Color.red(),
+                timestamp=discord.utils.utcnow(),
+            )
+            embed.add_field(name="Reason", value=reason, inline=False)
+            embed.add_field(name="Moderator", value=interaction.user.mention, inline=False)
+            embed.set_author(name=str(user), icon_url=user.display_avatar.url)
+            embed.set_footer(text=f"User ID: {user.id}")
+
+            await self._send_log(interaction.guild, embed)
 
         except discord.Forbidden:
-            await interaction.followup.send(
-                "It was not possible to send the message, maybe the user disabled their DMs."
-            )
-            print(
-                "It was not possible to send the message, maybe the user disabled their DMs."
-            )
-        except discord.NotFound:
-            await interaction.followup.send(
-                f"The member {member} is not in the server and cannot be banned."
-            )
-            print(f"The member {member} is not in the server and cannot be banned.")
-        
-        # Ban the member
-        try:
-            await interaction.guild.ban(user=member, reason=reason)
-            await interaction.followup.send(f"{member} has been banned.")
+            await interaction.followup.send("Failed to execute ban: insufficient bot permissions.")
+        except Exception as error:
+            await interaction.followup.send(f"An error occurred while executing the ban: {error}")
 
-            # chatlog_channel
-            chatlog_channel = self.bot.get_channel(1310776908908331040)
-            print(f"Chatlog channel: {chatlog_channel}")
-
-            if chatlog_channel is None:
-                print("Chatlog channel not found or bot doesn't have access.")
-                return
-
-            # Create the embed to send to the chatlog_channel
-            embed = discord.Embed(
-                title=f"The member {member.name} has being banned",
-                color=discord.Color.red(),
-                timestamp=datetime.now(),
-            )
-            embed.add_field(name="**Reason**", value=reason, inline=False)
-            embed.set_author(name=member.name, icon_url=member.display_avatar)
-            embed.set_footer(text=f"User ID: {member.id}")
-
-            await chatlog_channel.send(embed=embed)
-
-        except discord.NotFound:
-            await interaction.followup.send(
-                f"The member {member} is not in the server or does not exist"
-            )
-            print(f"The member {member} is not in the server and cannot be banned.")
-        except Exception as e:
-            await interaction.followup.send(f"An error occurred: {e}")
-            print(f"An error occurred: {e}")
-
-    # Mute command
-    @app_commands.command(description="Mute the member")
-    @app_commands.describe(member="The member to mute")
-    @app_commands.describe(time="For how long the member will stay muted")
-    @app_commands.describe(reason="Reason of the mute")
-    @app_commands.checks.has_permissions(ban_members=True)
+    # --- Mute (Timeout) Command ---
+    @app_commands.command(name="mute", description="Applies a temporary timeout to a member.")
+    @app_commands.describe(member="The member to mute", duration_minutes="Duration of the mute in minutes", reason="Reason for the mute")
+    @app_commands.checks.has_permissions(moderate_members=True)
     async def mute(
         self,
         interaction: discord.Interaction,
         member: discord.Member,
-        time: int,
-        reason: str,
+        duration_minutes: int,
+        reason: str = "No reason provided",
     ):
+        await interaction.response.defer(thinking=True)
 
-        time_muted = timedelta(minutes=time)
+        if not interaction.guild:
+            await interaction.followup.send("This command can only be executed within a server.")
+            return
 
-        # send the mute message to the user
+        if member.top_role >= interaction.guild.me.top_role:
+            await interaction.followup.send("Cannot mute this member due to role hierarchy constraints.")
+            return
+
+        duration = timedelta(minutes=duration_minutes)
+
+        # Notify via direct message before applying the timeout
         try:
             await member.send(
-                f"You have been muted from {member.guild.name} for {time_muted} minutes for the reason: {reason}"
+                f"You have been muted in **{interaction.guild.name}** for {duration_minutes} minute(s). Reason: {reason}"
             )
-            print(f"{member.name} was muted and the message was sent")
-        except discord.Forbidden:
-            print(
-                "It was not possible to send the message, maybe the user disabled his dms"
-            )
+        except (discord.Forbidden, discord.HTTPException):
+            pass
 
-            chatlog_channel = self.bot.get_channel(1310776908908331040)
-            await member.timeout(time_muted, reason=reason)
+        try:
+            await member.timeout(duration, reason=reason)
+            await interaction.followup.send(f"Successfully muted **{member}** for {duration_minutes} minute(s).")
 
-            await interaction.response.send_message(
-                f"{member} has being muted for {time}"
-            )
-
+            # Create and dispatch log embed
             embed = discord.Embed(
-                title=f"The member {member.name} has being muted for {time}m",
-                color=discord.Color.red(),
-                timestamp=datetime.now(),
+                title=f"Member Muted: {member}",
+                color=discord.Color.orange(),
+                timestamp=discord.utils.utcnow(),
             )
-            embed.add_field(name="**Reason**", value=reason, inline=False)
-            embed.set_author(name=member.name, icon_url=member.display_avatar)
+            embed.add_field(name="Duration", value=f"{duration_minutes} minute(s)", inline=True)
+            embed.add_field(name="Reason", value=reason, inline=False)
+            embed.add_field(name="Moderator", value=interaction.user.mention, inline=False)
+            embed.set_author(name=str(member), icon_url=member.display_avatar.url)
             embed.set_footer(text=f"User ID: {member.id}")
-            await chatlog_channel.send(embed=embed)
-        except Exception as e:
-            await interaction.followup.send(f"an error was found {e}")
-            await interaction.followup.send(f"an error was found {e}")
+
+            await self._send_log(interaction.guild, embed)
+
+        except discord.Forbidden:
+            await interaction.followup.send("Failed to apply timeout: insufficient permissions.")
+        except Exception as error:
+            await interaction.followup.send(f"An error occurred while muting: {error}")
 
 
-async def setup(bot):
+async def setup(bot: commands.Bot):
     await bot.add_cog(Moderation(bot))

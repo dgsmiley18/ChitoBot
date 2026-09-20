@@ -1,2 +1,14 @@
-[config]
-token = "your_token_here"
+[bot]
+token = "YOUR_BOT_TOKEN_HERE"
+prefix = "!"
+
+[guild]
+# Primary guild ID for fast local testing.
+# Set to 0 to enable global command synchronization.
+guild_id = 0
+
+[features]
+# Set any unused feature ID to 0 to disable it
+welcome_channel_id = 0
+auto_role_id = 0
+log_channel_id = 0
