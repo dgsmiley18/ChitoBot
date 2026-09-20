@@ -1,11 +1,9 @@
-#!/usr/bin/env python3
 import logging
 import os
 import sys
-from datetime import datetime
+import tomllib
 
 import discord
-import tomllib
 from discord.ext import commands
 
 # --- Configuration Loading ---

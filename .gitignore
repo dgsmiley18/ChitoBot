@@ -144,3 +144,6 @@ discord.log/
 # vscode
 .vscode
 .vs
+
+# ruff
+.ruff_cache/

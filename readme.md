@@ -4,8 +4,12 @@
 
 
 
-
-[](LICENSE)
+[![CI](https://github.com/dgsmiley18/ChitoBot/actions/workflows/ci.yml/badge.svg)](https://github.com/dgsmiley18/ChitoBot/actions/workflows/ci.yml)
+[![Docker Publish](https://github.com/dgsmiley18/ChitoBot/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/dgsmiley18/ChitoBot/actions/workflows/docker-publish.yml)
+[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
+[![discord.py](https://img.shields.io/badge/discord.py-2.4%2B-5865F2.svg)](https://discordpy.readthedocs.io/)
+[![Docker](https://img.shields.io/badge/docker-ready-2496ED.svg)](https://www.docker.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [Features](#-features) • [Quick Start](#-quick-start) • [Configuration](#-configuration) • [Docker Deployment](#-docker-deployment) • [Commands](#-available-commands)
 
@@ -54,7 +58,7 @@ python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\Activate.ps1
 
 # Install package dependencies
-pip install .
+pip install -e ".[dev]"
 ```
 
 ### 2. Configuration
@@ -134,15 +138,29 @@ docker compose up -d
 
 ---
 
+## 🧪 Testing & Quality Assurance
+
+Run the automated test suite and lint checks locally:
+
+```bash
+# Run tests
+pytest -v
+
+# Run linter
+ruff check .
+```
+
+---
+
 ## 🛠️ Available Commands
 
 ### 🛡️ Moderation (`cogs/moderation.py`)
 
 | Command | Arguments | Permissions | Description |
 | :--- | :--- | :--- | :--- |
-| `/ban` | `[reason]` | `Ban Members` | Bans a member or user from the server with DM notice and audit logging. |
-| `/mute` |  `[reason]` | `Moderate Members` | Applies a temporary timeout to a member. |
-| `/purge` | `[reason]` | `Manage Messages` | Deletes up to 100 recent messages from the current channel. |
+| `/ban` | `` `[reason]` | `Ban Members` | Bans a member or user from the server with DM notice and audit logging. |
+| `/mute` | `` `` `[reason]` | `Moderate Members` | Applies a temporary timeout to a member. |
+| `/purge` | `` `[reason]` | `Manage Messages` | Deletes up to 100 recent messages from the current channel. |
 
 ### 🎈 Fun & Utilities (`cogs/fun.py`)
 
@@ -158,13 +176,20 @@ docker compose up -d
 
 ```text
 ChitoBot/
+├── .github/
+│   └── workflows/
+│       ├── ci.yml             # Linting, testing, and container build checks
+│       └── docker-publish.yml # Multi-arch image deployment to GHCR
 ├── cogs/
-│   ├── fun.py               # Fun, profile, and user diagnostic commands
-│   └── moderation.py        # Moderation utilities and audit event logs
-├── bot.py                   # Client entrypoint, intent configuration, and event listeners
-├── config.example.toml      # Configuration template with field descriptions
-├── Dockerfile               # Production-ready slim container definition
-├── pyproject.toml           # PEP 518/621 dependency & package metadata
+│   ├── fun.py                 # Fun, profile, and user diagnostic commands
+│   └── moderation.py          # Moderation utilities and audit event logs
+├── tests/
+│   ├── test_cogs.py           # Cog instantiation and setup tests
+│   └── test_config.py         # Config syntax and environment tests
+├── bot.py                     # Client entrypoint, intent configuration, and event listeners
+├── config.example.toml        # Configuration template with field descriptions
+├── Dockerfile                 # Production-ready slim container definition
+├── pyproject.toml             # PEP 518/621 dependency & package metadata
 └── README.md
 ```
 

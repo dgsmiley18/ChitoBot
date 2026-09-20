@@ -1,7 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "chitobot"
 version = "0.1.0"
+description = "A modular and self-hostable Discord bot built with discord.py."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
 dependencies = [
     "discord.py>=2.3.0",
-    "toml"
 ]
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "pytest",
+    "pytest-asyncio",
+]
+
+[tool.ruff.lint]
+ignore = ["BLE001", "EXE001", "EXE002"]
